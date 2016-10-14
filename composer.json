@@ -1,0 +1,20 @@
+{
+    "name": "sfukuda84/oceanis-cache",
+    "description": "Simple cache pool",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "sfukuda84",
+            "email": "sfukuda84@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0"        
+    },
+    "autoload": {
+        "psr-4": {
+            "Oceanis\\": "src/Oceanis/"
+        }
+    }
+}
