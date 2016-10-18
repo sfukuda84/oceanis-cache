@@ -1,39 +1,31 @@
 <?php
 namespace Oceanis\Cache\Pool;
 
-use Oceanis\CachePool;
+use Oceanis\Cache\CachePool;
 
-class File impelements CachePool
+class File implements CachePool
 {
-    protected $dirpath;
 
     public function __construct($dirpath)
     {
-        if (empty($dirpath) || !is_dir($dirpath)) {
+        if (!is_dir($dirpath)) {
             throw new \RuntimeException('Directory not found. path: '.$dirpath);
-        }
+        } 
         $this->dirpath = rtrim($dirpath).'/';
     }
 
     public function getItem($key)
     {
-        $fileTtl = $this->dirpath.$key.'.ttl';
-        $fileContent = $this->dirpath.$key.'.cnt';
-        if (!is_file($fileTtl)) {
-            if (file_exists($fileContent)) {
-                unlink($fileContent);
+        $filepath = $this->dirpath.$key.'.cache';
+        if (is_file($filepath)) {
+            if (($contents = unserialize(file_get_contents($filepath)))
+                && !empty($contents['ttl'])
+                && !empty($contents['item'])
+                && $contents['ttl'] >= time()) {
+                return $contents['item'];
+            } else {
+                unlink($filepath);
             }
-        } else if (!is_file($fileContent)) {
-            unlink($fileTtl);
-        } else {
-            if (($ttl = file_get_contents($fileTtl))
-                && $ttl >= time()
-                && ($contents = file_get_contents($fileContent))
-                && ($contents = unserialize($contents))) {
-                return $contents;
-            }
-            unlink($fileTtl);
-            unlink($fileContent);
         }
         return null;
     }
@@ -51,72 +43,66 @@ class File impelements CachePool
 
     public function hasItem($key)
     {
-        if (!is_file($fileTtl)) {
-            if (file_exists($fileContent)) {
-                unlink($fileContent);
-            }
-        } else if (!is_file($fileContent)) {
-            unlink($fileTtl);
-        } else {
-            if (($ttl = file_get_contents($fileTtl))
-                && $ttl >= time()) {
-                return true;
-            }
-            unlink($fileTtl);
-            unlink($fileContent);
-        }
-        return false;
+        return $this->getItem($key) !== null;
     }
 
     public function clear()
     {
-        $dir = new RegexIterator(
-            new DirectoryIterator($this->dirpath),
-            '/\.(:?ttl|cnt)$/',
-            RegexIterator::GET_MATCH
-        );
-        foreach ($dir as $fileinfo) {
-            if (!unlink($fileinfo)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public function deleteItem($key)
-    {
         $ret = true;
-        if (file_exists($this->dirpath.$key.'.ttl')) {
-            unlink($this->dirpath.$key.'.ttl') || $ret = false;
-        }
-        if (file_exists($this->dirpath.$key.'.cnt')) {
-            unlink($this->dirpath.$key.'.cnt') || $ret = false;
+        $dir = new \DirectoryIterator($this->dirpath);
+        foreach ($dir as $fileinfo) {
+            $pathname = $fileinfo->getPathname();
+            if (preg_match('/\.cache$/', $pathname) && !unlink($pathname)) {
+                $ret = false;
+            }
         }
         return $ret;
     }
 
+    public function deleteItem($key)
+    {
+        $filepath = $this->dirpath.$key.'.cache';
+        return !file_exists($filepath) || unlink($filepath);
+    }
+
     public function deleteItems(array $keys)
     {
-
+        $ret = true;
+        foreach ($keys as $key) {
+            if (!$this->deleteItem($key)) {
+                $ret = false;
+            }
+        }
+        return $ret;
     }
 
     public function save($key, $item, $ttl = null)
     {
-
+        $ttl = time() + ($ttl ?? 86400000);
+        return file_put_contents($this->dirpath.$key.'.cache', serialize(compact('ttl', 'item')), LOCK_EX) !== false;
     }
 
     public function saveDeferred($key, $item, $ttl = null)
     {
-
+        $ttl = time() + ($ttl ?? 86400000);
+        $this->deferreds[$key] = serialize(compact('ttl', 'item'));
+        return true;
     }
 
     public function commit()
     {
-
+        $ret = true;
+        foreach ($this->deferreds as $key => $item) {
+            if (!file_put_contents($this->dirpath.$key.'.cache', $item, LOCK_EX)) {
+                $ret = false;
+            }
+        }
+        return $ret;
     }
 
     public function rollback()
     {
-
+        $this->deferreds = [];
+        return true;
     }
 }

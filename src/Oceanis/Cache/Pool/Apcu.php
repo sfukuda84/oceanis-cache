@@ -16,7 +16,7 @@ class Apcu implements CachePool
         }
     }
 
-    public function getItems(array $keys = [])
+    public function getItems(array $keys)
     {
         $items = [];
         foreach ($keys as $key) {
@@ -45,12 +45,13 @@ class Apcu implements CachePool
 
     public function deleteItems(array $keys)
     {
+        $ret = true;
         foreach ($keys as $key) {
             if (apcu_exists($key) && !apcu_delete($key)) {
-                return false;
+                $ret = false;
             }
         }
-        return true;
+        return $ret;
     }
 
     public function save($key, $item, $ttl = null)
@@ -68,16 +69,16 @@ class Apcu implements CachePool
 
     public function commit()
     {
+        $ret = true;
         if (!empty($this->deferreds)) {
             foreach ($this->deferreds as $deferred) {
                 if (!apcu_store($deferred[0], $deferred[1], $deferred[2])) {
-                    $this->deferreds = [];
-                    return false;
+                    $ret = false;
                 }
             }
         }
         $this->deferreds = [];
-        return true;
+        return $ret;
     }
 
     public function rollback()

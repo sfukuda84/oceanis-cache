@@ -30,7 +30,7 @@ class Redis implements CachePool
         return unserialize(substr($item, $pos + 1));
     }
 
-    public function getItems(array $keys = [])
+    public function getItems(array $keys)
     {
         $items = [];
         $time = time();
@@ -66,12 +66,13 @@ class Redis implements CachePool
 
     public function deleteItems(array $keys)
     {
+        $ret = true;
         foreach ($keys as $key) {
             if ($this->conn->hDel($this->prefix, $key) === false) {
-                return false;
+                $ret = false;
             }
         }
-        return true;
+        return $ret;
     }
 
     public function save($key, $item, $ttl = null)

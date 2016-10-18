@@ -5,7 +5,7 @@ interface CachePool
 {
     public function getItem($key);
 
-    public function getItems(array $key = []);
+    public function getItems(array $keys);
 
     public function hasItem($key);
 

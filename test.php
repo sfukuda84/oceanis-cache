@@ -4,10 +4,14 @@ require __DIR__.'/vendor/autoload.php';
 class CacheFactory {
     const TYPE_APCU = 'Apcu'; 
     const TYPE_REDIS = 'Redis';
+    const TYPE_FILE = 'File';
+    const TYPE_MEMCACHED = 'Memcached';
 
     const TYPES = [
         self::TYPE_APCU,
-        self::TYPE_REDIS
+        self::TYPE_REDIS,
+        self::TYPE_FILE,
+//        self::TYPE_MEMCACHED
     ];
 
     private static $INSTANCE;
@@ -24,9 +28,16 @@ class CacheFactory {
     {
         $redis = new Redis();
         $redis->connect('localhost');
+        $dirpath = '/tmp/caches';
+        $memcached = new Memcached();
+        if (!is_dir($dirpath)) {
+            mkdir($dirpath, 0755, true);
+        }
         $this->caches = [
             self::TYPE_APCU => new Oceanis\Cache\Pool\Apcu(),
-            self::TYPE_REDIS => new Oceanis\Cache\Pool\Redis($redis)
+            self::TYPE_REDIS => new Oceanis\Cache\Pool\Redis($redis),
+            self::TYPE_FILE => new Oceanis\Cache\Pool\File($dirpath),
+            self::TYPE_MEMCACHED => new Oceanis\Cache\Pool\Memcached($memcached)
         ];
     }
 
